@@ -1,5 +1,6 @@
 - name: kubeadm init
-  hosts: all
+  hosts: localhost
+  connection: local
   gather_facts: yes
   become: true
 
@@ -13,7 +14,8 @@
         name: kubeadm
   
 - name: Init control plane
-  hosts: control_plane
+  hosts: localhost
+  connection: local
   gather_facts: yes
   become: true
   tasks:
