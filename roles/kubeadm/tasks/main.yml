@@ -27,10 +27,20 @@
   community.general.modprobe:
     name: "{{ item }}"
     state: present
-    persistent: present
   loop:
     - overlay
     - br_netfilter
+  become: true
+
+- name: Ensure kernel modules are loaded after reboot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/container.conf
+    content: |
+      overlay
+      br_netfilter
+    owner: root
+    group: root
+    mode: '0644'
   become: true
 
 - name: Swap configuration
