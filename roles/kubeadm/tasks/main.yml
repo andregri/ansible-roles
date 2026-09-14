@@ -60,9 +60,9 @@
 
 ###
 
-- name: Set Kubernetes release version v1.34.11
+- name: Set Kubernetes release version v1.33.12
   ansible.builtin.set_fact:
-    k8s_release_version: "v1.34.11"
+    k8s_release_version: "v1.33.12"
 
 - name: Set Kubernetes release arch
   ansible.builtin.set_fact:
