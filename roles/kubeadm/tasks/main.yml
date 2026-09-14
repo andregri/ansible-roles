@@ -28,10 +28,10 @@
     name: "{{ item }}"
     state: present
     persistent: present
-    loop:
-      - overlay
-      - br_netfilter
-    become: true
+  loop:
+    - overlay
+    - br_netfilter
+  become: true
 
 - name: Swap configuration
   ansible.builtin.shell:
@@ -44,9 +44,9 @@
     value: "1"
     state: present
     reload: yes
-    loop:
-      - net.ipv4.ip_forward
-      - net.bridge.bridge-nf-call-iptables
+  loop:
+    - net.ipv4.ip_forward
+    - net.bridge.bridge-nf-call-iptables
 
 ###
 
