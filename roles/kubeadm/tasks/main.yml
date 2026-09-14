@@ -132,7 +132,7 @@
     mode: "0644"
 
 - name: Start kubelet with systemd
-  ansible.builtin.systemd_service:
+  ansible.builtin.systemd:
     state: restarted
     name: kubelet
     daemon_reload: true

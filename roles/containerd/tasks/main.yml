@@ -19,7 +19,7 @@
     dest: /usr/lib/systemd/system/containerd.service
 
 - name: Start containerd with systemd
-  ansible.builtin.systemd_service:
+  ansible.builtin.systemd:
     state: restarted
     name: containerd
     daemon_reload: true
