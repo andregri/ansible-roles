@@ -150,12 +150,6 @@
 
 ###
 
-- name: Install kubectl
-  ansible.builtin.get_url:
-    url: "https://dl.k8s.io/release/{{ k8s_release_version }}/bin/linux/amd64/kubectl"
-    dest: /usr/local/bin/kubectl
-    mode: '0755'
-
 - name: Get kubectl checksum
   ansible.builtin.uri:
     url: "https://dl.k8s.io/release/{{ k8s_release_version }}/bin/linux/amd64/kubectl.sha256"
