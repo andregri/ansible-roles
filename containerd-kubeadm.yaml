@@ -1,0 +1,12 @@
+- name: install kubeadm with containerd
+  gather_facts: yes
+  become: true
+
+  tasks:
+    - name: Install container runtime
+      import_role:
+        name: containerd
+    
+    - name: Install kubeadm using role
+      import_role:
+        name: kubeadm
