@@ -13,6 +13,34 @@
     dest: /usr/local
     remote_src: yes
 
+- name: Create containerd configuration directory
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Generate default containerd configuration
+  ansible.builtin.command:
+    cmd: "containerd config default"
+  register: containerd_config
+
+- name: Write containerd configuration to file
+  ansible.builtin.copy:
+    content: "{{ containerd_config.stdout }}"
+    dest: /etc/containerd/config.toml
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Align containerd configuration with Kubernetes requirements
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'systemd_cgroup = true'
+  become: true
+
 - name: Create containerd systemd service file
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/containerd/containerd/main/containerd.service
