@@ -37,8 +37,8 @@
 - name: Align containerd configuration with Kubernetes requirements
   ansible.builtin.replace:
     path: /etc/containerd/config.toml
-    regexp: 'SystemdCgroup = false'
-    replace: 'SystemdCgroup = true'
+    regexp: '^(\s*)SystemdCgroup\s*=\s*false\s*$'
+    replace: '\1SystemdCgroup = true'
   become: true
 
 - name: Create containerd systemd service file
