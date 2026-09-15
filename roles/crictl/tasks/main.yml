@@ -5,14 +5,20 @@
   ansible.builtin.set_fact:
     crictl_version: "v1.37.0"
 
+- name: Get crictl checksum
+  ansible.builtin.uri:
+    url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz.sha256"
+    return_content: true
+  register: crictl_checksum
+
 - name: Download crictl
   ansible.builtin.get_url:
-    url: https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz
-    checksum: sha256:https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz.sha256
-    dest: /opt/crictl-{{ crictl_version }}-linux-amd64.tar.gz
+    url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
+    checksum: "sha256:{{ crictl_checksum.content | trim }}"
+    dest: "/opt/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
 
 - name: Extract archive
   ansible.builtin.unarchive:
-    src: /opt/crictl-{{ crictl_version }}-linux-amd64.tar.gz
+    src: "/opt/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
     dest: /usr/local/bin
     remote_src: yes
