@@ -8,7 +8,7 @@
 - name: Download crictl
   ansible.builtin.get_url:
     url: https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz
-    checksum: sha256:https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz.sha256sum
+    checksum: sha256:https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz.sha256
     dest: /opt/crictl-{{ crictl_version }}-linux-amd64.tar.gz
 
 - name: Extract archive
