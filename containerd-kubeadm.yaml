@@ -1,4 +1,5 @@
 - name: install kubeadm with containerd
+  hosts: "{{ target_hosts }}"
   gather_facts: yes
   become: true
 
