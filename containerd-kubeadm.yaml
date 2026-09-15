@@ -7,6 +7,10 @@
     - name: Install container runtime
       import_role:
         name: containerd
+
+    - name: Install crictl using role
+      import_role:
+        name: crictl
     
     - name: Install kubeadm using role
       import_role:
