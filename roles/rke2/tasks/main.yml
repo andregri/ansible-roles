@@ -1,0 +1,14 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/rke2
+- name: Install rke2
+  ansible.builtin.shell:
+    cmd: curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION="{{ rk2_version }}" sh -
+  become: true
+
+- name: Enable rke2 service
+  ansible.builtin.systemd:
+    state: restarted
+    name: rke2-server
+    daemon_reload: true
+    enabled: true
