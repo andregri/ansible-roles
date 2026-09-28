@@ -1,0 +1,5 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/etcd
+etcd_version: "v3.7.2"
+download_url: "https://storage.googleapis.com/etcd"

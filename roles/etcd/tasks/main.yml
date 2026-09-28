@@ -1,0 +1,15 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/etcd
+- name: Download etcd
+  ansible.builtin.get_url:
+    url: "{{ download_url }}/{{ etcd_version }}/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
+    checksum: sha256:https://github.com/etcd-io/etcd/releases/download/{{ etcd_version }}/SHA256SUMS
+    dest: "/tmp/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
+
+- name: Extract archive
+  ansible.builtin.unarchive:
+    src: "/tmp/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: yes
+    extra_opts: ['--strip-components=1', '--show-stored-names']
