@@ -1,0 +1,207 @@
+###
+
+- name: Init control plane
+  hosts: "{{ groups['control_plane'][0] }}"
+  gather_facts: yes
+  become: true
+  tasks:
+    - name: Set Kubernetes release version v1.33.12
+      ansible.builtin.set_fact:
+        k8s_release_version: "v1.33.12"
+
+    - name: kubeadm init
+      ansible.builtin.shell:
+        cmd: >
+          kubeadm init --pod-network-cidr=192.168.0.0/16 
+          --kubernetes-version "{{ k8s_release_version }}" 
+          --control-plane-endpoint "{{ hostvars[groups['control_plane'][0]]['private_ip'] }}:6443"
+        creates: /etc/kubernetes/admin.conf
+      register: kubeadm_init
+      changed_when: kubeadm_init.rc == 0
+    
+    - name: Create .kube directory
+      ansible.builtin.file:
+        path: /home/{{ ansible_user }}/.kube
+        state: directory
+        mode: "0755"
+        owner: "{{ ansible_user }}"
+
+    - name: Copy admin.conf to user's kube config
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/{{ ansible_user }}/.kube/config
+        remote_src: true
+        mode: "0644"
+        owner: "{{ ansible_user }}"
+
+    - name: Get join command
+      ansible.builtin.shell:
+        cmd: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
+
+    - name: Get certificate key
+      ansible.builtin.shell:
+        cmd: kubeadm init phase upload-certs --upload-certs
+      register: certificate_key
+      changed_when: false
+
+    - name: Set certificate key fact
+      ansible.builtin.set_fact:
+        control_plane_certificate_key: "{{ certificate_key.stdout_lines[-1] }}"
+    
+    - name: Allow all access to tcp port 6443
+      community.general.ufw:
+        rule: allow
+        port: '6443'
+        proto: tcp
+
+###
+
+- name: Join other control plane nodes to the cluster
+  hosts: "control_plane:!{{ groups['control_plane'][0] }}"
+  gather_facts: yes
+  become: true
+  tasks:
+    - name: Show join command
+      ansible.builtin.debug:
+        msg: "{{ hostvars[groups['control_plane'][0]].join_command.stdout }}"
+
+    - name: Show certificate key
+      ansible.builtin.debug:
+        msg: "{{ hostvars[groups['control_plane'][0]].certificate_key.stdout_lines[-1] }}"
+
+    - name: Execute join command
+      ansible.builtin.shell:
+        cmd: >
+          {{ hostvars[groups['control_plane'][0]].join_command.stdout }}
+          --control-plane
+          --certificate-key "{{ hostvars[groups['control_plane'][0]].control_plane_certificate_key }}"
+        creates: /etc/kubernetes/kubelet.conf
+      register: kubeadm_join
+
+    - name: Show join result
+      ansible.builtin.debug:
+        var: kubeadm_join
+
+###
+
+- name: Join worker nodes to the cluster
+  hosts: "{{ groups['workers'] }}"
+  gather_facts: yes
+  become: true
+  tasks:
+    - name: Execute join command
+      ansible.builtin.shell:
+        cmd: >
+          {{ hostvars[groups['control_plane'][0]].join_command.stdout }}
+        creates: /etc/kubernetes/kubelet.conf
+
+###
+
+- name: Relabel worker nodes
+  hosts: "{{ groups['control_plane'][0] }}"
+  gather_facts: yes
+  tasks:
+    - name: Label the node
+      ansible.builtin.shell:
+        cmd: kubectl label node {{ item }} node-role.kubernetes.io/worker=worker
+      loop: "{{ groups['workers'] }}"
+
+- name: Install CNI Calico and validate cluster
+  hosts: "{{ groups['control_plane'][0] }}"
+  gather_facts: yes
+  tasks:
+    - name: Pin Helm version
+      ansible.builtin.set_fact:
+        helm_version: "v4.3.0"
+
+    - name: Download helm
+      ansible.builtin.get_url:
+        url: https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz
+        checksum: sha256:https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz.sha256sum
+        dest: /opt
+      become: true
+
+    - name: Extract helm archive
+      ansible.builtin.unarchive:
+        src: /opt/helm-{{ helm_version }}-linux-amd64.tar.gz
+        dest: /opt
+        remote_src: yes
+      become: true
+    
+    - name: Copy helm binary
+      ansible.builtin.copy:
+        src: /opt/linux-amd64/helm
+        dest: /usr/local/bin/helm
+        owner: "{{ ansible_user }}"
+        mode: "0755"
+        remote_src: true
+      become: true
+
+    - name: Add Calico helm repo
+      ansible.builtin.shell:
+        cmd: helm repo add projectcalico https://docs.tigera.io/calico/charts
+    
+    - name: Update helm repos
+      ansible.builtin.shell:
+        cmd: helm repo update
+    
+    - name: Pin Calico version
+      ansible.builtin.set_fact:
+        calico_version: "v3.32.0"
+
+    - name: Install calico crd
+      ansible.builtin.shell:
+        cmd: >
+          helm template calico-crds projectcalico/crd.projectcalico.org.v1 --version {{ calico_version }}
+          | kubectl apply --server-side -f -
+    
+    - name: Install calico repo
+      ansible.builtin.shell:
+        cmd: |
+          helm upgrade --install calico projectcalico/tigera-operator \
+            --version {{ calico_version }} \
+            --namespace tigera-operator \
+            --create-namespace
+
+    - name: Wait nodes are ready
+      ansible.builtin.shell:
+        cmd: kubectl wait --for=condition=Ready nodes --all --timeout=2m
+    
+    - name: Wait coredns pod is Running
+      ansible.builtin.shell:
+        cmd: kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=5m
+
+    - name: kubectl get kube-system pods
+      ansible.builtin.shell:
+        cmd: kubectl get po -n kube-system
+      register: kubectl_get_pod
+      changed_when: false
+
+    - name: show get pods
+      ansible.builtin.debug:
+        msg: "{{ kubectl_get_pod.stdout_lines }}"
+      changed_when: false
+
+    - name: kubectl get nodes
+      ansible.builtin.shell:
+        cmd: kubectl get nodes
+      register: kubectl_get_nodes
+      changed_when: false
+
+    - name: show get nodes
+      ansible.builtin.debug:
+        msg: "{{ kubectl_get_nodes.stdout_lines }}"
+      changed_when: false
+    
+    - name: DNS smoke test
+      ansible.builtin.shell:
+        cmd: kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup kubernetes.default
+      register: dns_nslookup
+      changed_when: false
+    
+    - name: Show nslookup output
+      ansible.builtin.debug:
+        msg: "{{ dns_nslookup.stdout_lines }}"
+      changed_when: false

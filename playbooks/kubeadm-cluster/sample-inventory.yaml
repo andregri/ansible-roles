@@ -1,0 +1,26 @@
+"all":
+  "children":
+    "control_plane":
+      "hosts":
+        "multinode-vm-0":
+          "ansible_host": "127.0.0.1"
+          "ansible_port": 10022
+          "ansible_user": "testadmin"
+          "private_ip": "10.0.2.6"
+        "multinode-vm-1":
+          "ansible_host": "127.0.0.1"
+          "ansible_port": 10023
+          "ansible_user": "testadmin"
+          "private_ip": "10.0.2.4"
+        "multinode-vm-2":
+          "ansible_host": "127.0.0.1"
+          "ansible_port": 10024
+          "ansible_user": "testadmin"
+          "private_ip": "10.0.2.5"
+    "workers":
+      "hosts":
+        "multinode-vm-3":
+          "ansible_host": "127.0.0.1"
+          "ansible_port": 10025
+          "ansible_user": "testadmin"
+          "private_ip": "10.0.2.7"
