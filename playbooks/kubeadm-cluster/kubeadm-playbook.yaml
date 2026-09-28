@@ -49,12 +49,6 @@
     - name: Set certificate key fact
       ansible.builtin.set_fact:
         control_plane_certificate_key: "{{ certificate_key.stdout_lines[-1] }}"
-    
-    # - name: Allow all access to tcp port 6443
-    #   community.general.ufw:
-    #     rule: allow
-    #     port: '6443'
-    #     proto: tcp
 
 ###
 
@@ -197,7 +191,7 @@
     
     - name: DNS smoke test
       ansible.builtin.shell:
-        cmd: kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup kubernetes.default
+        cmd: kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup kubernetes.default.svc.cluster.local
       register: dns_nslookup
       changed_when: false
     
