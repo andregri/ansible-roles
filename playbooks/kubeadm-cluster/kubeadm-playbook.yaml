@@ -50,11 +50,11 @@
       ansible.builtin.set_fact:
         control_plane_certificate_key: "{{ certificate_key.stdout_lines[-1] }}"
     
-    - name: Allow all access to tcp port 6443
-      community.general.ufw:
-        rule: allow
-        port: '6443'
-        proto: tcp
+    # - name: Allow all access to tcp port 6443
+    #   community.general.ufw:
+    #     rule: allow
+    #     port: '6443'
+    #     proto: tcp
 
 ###
 
