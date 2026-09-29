@@ -1,0 +1,128 @@
+- name: Start etcd cluster
+  hosts: "{{ groups['etcd'] }}"
+  gather_facts: yes
+  become: true
+  tasks:
+  - name: Create etcd group
+    ansible.builtin.group:
+      name: etcd
+      system: true
+
+  # useradd --system --no-create-home --shell /usr/sbin/nologin --gid etcd etcd
+  - name: Create etcd user
+    ansible.builtin.user:
+      name: etcd
+      group: etcd
+      system: true
+      shell: /usr/sbin/nologin
+      create_home: false
+
+  - name: Create /var/lib/etcd directory
+    ansible.builtin.file:
+      path: /var/lib/etcd
+      state: directory
+      mode: "0755"
+      owner: etcd
+      group: etcd
+
+  - name: Create /etc/etcd directory
+    ansible.builtin.file:
+      path: /etc/etcd
+      state: directory
+      mode: "0755"
+      owner: etcd
+      group: etcd
+
+  - name: Upload certificates
+    ansible.builtin.copy:
+      src: "{{ base_path }}/certs/"
+      dest: /etc/etcd/certs
+      owner: etcd
+      group: etcd
+      mode: '0600'
+
+  - name: Create etcd.conf
+    ansible.builtin.copy:
+      content: |
+        name: {{ inventory_hostname }}
+        data-dir: /var/lib/etcd
+        listen-client-urls: "https://{{ private_ip }}:2379"
+        advertise-client-urls: "https://{{ private_ip }}:2379"
+        log-level: info
+        client-transport-security:
+          cert-file: /etc/etcd/certs/{{ inventory_hostname }}.pem
+          key-file: /etc/etcd/certs/{{ inventory_hostname }}-key.pem
+          client-cert-auth: false
+          trusted-ca-file: /etc/etcd/certs/ca.pem
+          auto-tls: false
+        peer-transport-security:
+          cert-file: /etc/etcd/certs/peer-{{ inventory_hostname }}.pem
+          key-file: /etc/etcd/certs/peer-{{ inventory_hostname }}-key.pem
+          client-cert-auth: true
+          trusted-ca-file: /etc/etcd/certs/ca.pem
+          auto-tls: false
+      dest: /etc/etcd/etcd.conf
+      owner: etcd
+      group: etcd
+      mode: '0644'
+
+  - name: Create etcd.service
+    ansible.builtin.copy:
+      content: |
+        [Unit]
+        Description=etcd key-value store
+        Documentation=https://etcd.io/docs/
+        After=network.target
+
+        [Service]
+        User=etcd
+        Group=etcd
+        Type=notify
+        ExecStart=/usr/local/bin/etcd --config-file=/etc/etcd/etcd.conf
+        Restart=on-failure
+        LimitNOFILE=40000
+
+        [Install]
+        WantedBy=multi-user.target
+      dest: /etc/systemd/system/etcd.service
+      owner: etcd
+      group: etcd
+      mode: '0644'
+
+  - name: Start etcd with systemd
+    ansible.builtin.systemd:
+      state: started
+      name: etcd
+      daemon_reload: true
+      enabled: true
+
+  - name: etcdctl smoke test
+    ansible.builtin.shell:
+      cmd: >
+        etcdctl
+        --endpoints https://{{ private_ip }}:2379
+        --cert /etc/etcd/certs/{{ inventory_hostname }}.pem
+        --key /etc/etcd/certs/{{ inventory_hostname }}-key.pem
+        --cacert=/etc/etcd/certs/ca.pem
+        member list
+    register: etcdctl_member_list
+    changed_when: false
+
+  - name: Print etcd member list
+    ansible.builtin.debug:
+      msg: "{{ etcdctl_member_list.stdout_lines }}"
+    changed_when: false
+  
+  # - ansible.builtin.shell:
+  #     cmd: >
+  #       etcd --name {{ inventory_hostname }} --data-dir {{ inventory_hostname }}\
+  #       --client-cert-auth \
+  #       --trusted-ca-file= \
+  #       --cert-file=/path/to/server.crt \
+  #       --key-file=/path/to/server.key \
+  #       --peer-client-cert-auth \
+  #       --peer-trusted-ca-file=/path/to/ca.crt \
+  #       --peer-cert-file=/path/to/member1.crt \
+  #       --peer-key-file=/path/to/member1.key \
+  #       --advertise-client-urls https://{{ private_ip }}:2379 \
+  #       --listen-client-urls https://{{ private_ip }}:2379
